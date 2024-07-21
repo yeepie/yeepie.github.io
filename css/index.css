@@ -3802,12 +3802,12 @@ pre .coffeescript .title {
   transform: translateY(0) scale(1);
 }
 :root {
-  --primary: #a0c15d;
-  --primary-70: rgba(160, 193, 93, 0.7);
-  --primary-50: rgba(160, 193, 93, 0.5);
-  --primary-30: rgba(160, 193, 93, 0.3);
-  --primary-weak: #a0c15d;
-  --primary-weak-50: rgba(160, 193, 93, 0.5);
+  --primary: #95c275;
+  --primary-70: rgba(149, 194, 117, 0.7);
+  --primary-50: rgba(149, 194, 117, 0.5);
+  --primary-30: rgba(149, 194, 117, 0.3);
+  --primary-weak: #95c275;
+  --primary-weak-50: rgba(149, 194, 117, 0.5);
 }
 :root.dark {
   --primary: #5061b4;

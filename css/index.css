@@ -3626,7 +3626,7 @@ figure.highlight .code-expand-btn svg {
   width: 100%;
   overflow-x: auto;
   color: var(--highlight-foreground);
-  background: var(--highlight-background);
+  background: #000000;
 }
 .highlight pre {
   font-size: 14px !important;

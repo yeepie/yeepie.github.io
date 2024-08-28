@@ -3602,9 +3602,9 @@ figure.highlight .code-expand-btn svg {
 :root {
   /* 代码块背景色、前景色 */
   --highlight-background: #f6f8fa;
-  --highlight-foreground: #000000;
+  --highlight-foreground: #171717;
   /* 行号 */
-  --highlight-gutter-color: #828282;
+  --highlight-gutter-color: #636363;
   --highlight-gutter-bg-color: #f1f1f1;
   /* 工具栏 */
   --highlight-tools-color: #646464;

@@ -32,8 +32,8 @@
   --primary-30: rgba(175, 180, 43, 0.3);
   --primary-weak: #c0ca33;
   --primary-weak-50: rgba(192, 202, 51, 0.5);
-  --body-color: #5d5d5e;
-  --body-color-5: rgba(93, 93, 94, 0.05);
+  --body-color: #2e2e2e;
+  --body-color-5: rgba(46, 46, 46, 0.05);
   --body-bg-color: #00151f;
   --theme-color: #00283a;
   --theme-bg-color: #fcfcfe;
@@ -3599,6 +3599,30 @@ figure.highlight .code-expand-btn svg {
   --highlight-green: #c3e88d;
   --highlight-blue: #82aaff;
 }
+:root {
+  /* 代码块背景色、前景色 */
+  --highlight-background: #f6f8fa;
+  --highlight-foreground: #000000;
+  /* 行号 */
+  --highlight-gutter-color: #828282;
+  --highlight-gutter-bg-color: #f1f1f1;
+  /* 工具栏 */
+  --highlight-tools-color: #646464;
+  --highlight-tools-bg-color: #e6ebf1;
+  /* 滚动条 */
+  --highlight-scrollbar: #d7d7d7;
+  /* 代码 */
+  --highlight-addition: #e32323;
+  --highlight-deletion: #bf42bf;
+  --highlight-comment: rgba(149, 165, 166, 0.8);
+  --highlight-yellow: #ffb62c;
+  --highlight-purple: #7c4dff;
+  --highlight-aqua: #39adb5;
+  --highlight-red: #e53935;
+  --highlight-orange: #f76d47;
+  --highlight-green: #91b859;
+  --highlight-blue: #6182b8;
+}
 .highlight {
   position: relative;
   margin: 20px 0;
@@ -3626,11 +3650,11 @@ figure.highlight .code-expand-btn svg {
   width: 100%;
   overflow-x: auto;
   color: var(--highlight-foreground);
-  background: #000000;
+  background: var(--highlight-background);
 }
 .highlight pre {
   font-size: 14px !important;
-  border: 1px solid #000000;
+  border: none;
   white-space: pre;
   margin: 0;
   padding: 0;
